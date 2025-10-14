@@ -16,7 +16,7 @@ int main()
         // M.dump();
 
         double det = M.getDet();
-        std::cout << "Determinant: " << det << "\n";
+        std::cout << det << "\n";
     }
     catch (const std::exception& e)
     {

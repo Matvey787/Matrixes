@@ -1,73 +1,145 @@
 #include "matrix.hpp"
 #include <fstream>
 #include <iostream>
+#include <string>
 #include <random>
+#include <vector>
+#include <stdexcept>
 
 const double MIN_DOUBLE_ABOVE_ONE = 1.000000001;
-const double MAX_DOUBLE = 100000;
-const double MIN_DOUBLE = -100000;
+const double MAX_DOUBLE = 1000;
+const double MIN_DOUBLE = -1000;
 
-int main(int argc, char* argv[])
+template<typename T>
+struct ArgsData
+{
+    T determinant;
+    size_t metric;
+    std::string fileWriteTo;
+};
+
+template <typename T>
+ArgsData<T> collectArgsData(int argc, char* argv[])
 {
     if (argc < 3)
     {
-        std::cout << "Usage: " << argv[0] << " <determinant> " << "<metric>" << " <file_write_to>" << std::endl;
-        return 0;
+        throw std::invalid_argument("Usage: program <determinant> <metric> [file_write_to]");
+    }
+    size_t metric = static_cast<size_t>(std::stoul(argv[2]));
+    std::string fileWriteTo = (argc == 4) ? argv[3] : "";
+
+    if constexpr (std::is_same_v<T, double>)
+        return { std::stod(argv[1]), metric, fileWriteTo };
+    else
+        return { static_cast<T>(std::stoll(argv[1])), metric, fileWriteTo };
+}
+
+template<typename T>
+void createMatrixWithDeterminant(Matrix::Matrix<T>& matrix, T det, std::mt19937& rng)
+{
+    if (matrix.width() != matrix.height())
+        throw std::invalid_argument("Matrix must be square");
+    size_t metric = matrix.width();
+
+    for(size_t i = 0; i < metric; ++i) {
+        for(size_t j = 0; j < metric; ++j) {
+            matrix[i][j] = 0;
+        }
+    }
+    if constexpr (std::is_same_v<T, double>)
+    {
+        double diagonal_remainder = det;
+        for (size_t i = 0; i < metric - 1; ++i)
+        {
+            std::uniform_real_distribution<double> dist_diag(MIN_DOUBLE_ABOVE_ONE, std::abs(diagonal_remainder) + 1.0);
+            double ii_elem = dist_diag(rng);
+            diagonal_remainder /= ii_elem;
+            matrix[i][i] = ii_elem;
+        }
+        matrix[metric - 1][metric - 1] = diagonal_remainder;
+    }
+    else
+    {
+        for (size_t i = 0; i < metric - 1; ++i) {
+            matrix[i][i] = 1;
+        }
+        matrix[metric - 1][metric - 1] = det;
+    }
+   
+    for (size_t i = 0; i < metric; ++i)
+    {
+        if constexpr (std::is_same_v<T, double>)
+        {
+            std::uniform_real_distribution<T> dist_upper(MIN_DOUBLE, MAX_DOUBLE);
+            for (size_t j = i + 1; j < metric; ++j) matrix[i][j] = dist_upper(rng);
+        }
+        else
+        {
+            std::uniform_int_distribution<T> dist_upper(static_cast<T>(MIN_DOUBLE), static_cast<T>(MAX_DOUBLE));
+            for (size_t j = i + 1; j < metric; ++j) matrix[i][j] = dist_upper(rng);
+        }
+    }
+}
+
+template<typename T>
+void shakeMatrix(Matrix::Matrix<T>& matrix, std::mt19937& rng)
+{
+    size_t metric = matrix.width();
+    if (metric == 0) return;
+    for (size_t i = 0; i < metric * 2; ++i)
+    {
+        std::uniform_int_distribution<size_t> dist(0, metric - 1);
+        size_t r1 = dist(rng);
+        size_t r2 = dist(rng);
+
+        if (r1 == r2) r2 = (r1 + 1) % metric;
+         
+        for (size_t c = 0; c < metric; ++c) std::swap(matrix[r1][c], matrix[r2][c]);
     }
 
-    double det = std::stod(argv[1]);
-    size_t metric = std::stoul(argv[2]);
+    for (size_t i = 0; i < metric * 2; ++i)
+    {
+        std::uniform_int_distribution<size_t> dist(0, metric - 1);
+        size_t c1 = dist(rng);
+        size_t c2 = dist(rng);
 
-    double diagonal_remainder = det;
+        if (c1 == c2) c2 = (c1 + 1) % metric;
+        
+        for (size_t r = 0; r < metric; ++r) std::swap(matrix[r][c1], matrix[r][c2]);
+    }
+}
 
-    srand(static_cast<unsigned int>(time(nullptr)));
+template<typename T>
+void run(int argc, char* argv[], std::mt19937& rng)
+{
+    auto data = collectArgsData<T>(argc, argv);
+    Matrix::Matrix<T> matrix(data.metric, data.metric);
+    createMatrixWithDeterminant(matrix, data.determinant, rng);
+    shakeMatrix(matrix, rng);
+    matrix.dump(data.fileWriteTo);
+}
+
+int main(int argc, char* argv[])
+{
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <determinant> <metric> [file_write_to]" << std::endl;
+        return 1;
+    }
+
     std::random_device dev;
     std::mt19937 rng(dev());
-
-    Matrix::Matrix<double> matrix(metric, metric);
-
-    for (size_t i = 0; i < metric - 1; ++i)
-    {
-        std::uniform_real_distribution<double> elem(MIN_DOUBLE_ABOVE_ONE, diagonal_remainder);
-        double ii_elem = elem(rng);
-        diagonal_remainder /= ii_elem;
-        matrix[i][i] = ii_elem;
-
-        for (size_t j = i + 1; j < metric; ++j)
+    try {
+        if (std::string(argv[1]).find('.') != std::string::npos)
         {
-            std::uniform_real_distribution<double> elem(MIN_DOUBLE, MAX_DOUBLE);
-            double ij_elem = elem(rng);
-            matrix[i][j] = ij_elem;
+            run<double>(argc, argv, rng);
         }
-    }
-    matrix[metric - 1][metric - 1] = diagonal_remainder;
-
-    // Путаем строки
-    for (size_t i = 1; i < metric; ++i)
-    {
-        for (size_t c = 0; c < metric; ++c)
-            if (i % 2 == 0)
-                matrix[i][c] += matrix[i - 1][c];
-            else
-                matrix[i][c] -= matrix[i - 1][c];
-    }
-
-    // Путаем столбцы
-    for (size_t c = 1; c < metric; ++c)
-    {
-        for (size_t r = 0; r < metric; ++r)
+        else
         {
-            if (c % 2 == 0)
-                matrix[r][c] -= matrix[r][c - 1] * 1.1;
-            else
-                matrix[r][c] += matrix[r][c - 1] / 1.1;
+            run<int>(argc, argv, rng);
         }
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
+        return 1;
     }
-
-    std::string fileWriteTo;
-
-    if (argc == 4) fileWriteTo = argv[3];
-
-    matrix.dump(fileWriteTo);
     return 0;
 }
