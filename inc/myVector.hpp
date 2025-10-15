@@ -103,7 +103,7 @@ public:
 
     ~myVector()
     {
-        delete[] data_;
+        if (data_) delete[] data_;
     }
 
     void push_back(const T& val)
@@ -115,7 +115,7 @@ public:
 
             for (size_t i = 0; i < size_; ++i) newData[i] = std::move(data_[i]);
 
-            delete[] data_;
+            if (data_) delete[] data_;
             data_ = newData;
         }
         data_[size_++] = val;

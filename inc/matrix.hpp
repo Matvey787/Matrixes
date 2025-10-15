@@ -113,7 +113,7 @@ public:
     ProxyRow operator[](size_t i) { return rows_[i]; }
     const ProxyRow operator[](size_t i) const { return rows_[i]; }
 
-    T getDet() const {
+    T getGaussDet() const {
         if (height_ == 0 || width_ == 0) throw std::out_of_range("Matrix is empty");
         if (height_ != width_) throw std::invalid_argument("Determinant defined only for square matrices");
         if (height_ == 1 && width_ == 1) return rows_[0][0];
@@ -125,7 +125,7 @@ public:
             tempRows.push_back({ &tmp[i * width_], width_ });
 
         T det = 1;
-
+        
         for (size_t i = 0; i < height_; ++i)
         {
             
@@ -149,13 +149,11 @@ public:
                     }
                     else
                     {
-                        
                         return T(0);
                     }
                 }
                 else
                 {
-                    
                     std::swap(tempRows[i], tempRows[swapRow]);
                     det = -det; 
                 }
@@ -180,6 +178,56 @@ public:
 
         return det;
     }
+
+    T getBareissDet() const
+    {
+        if (height_ == 0 || width_ == 0)
+        {
+            std::cout << "here6" << std::endl;
+            throw std::out_of_range("Matrix is empty");
+        }
+            
+        if (height_ != width_)
+            throw std::invalid_argument("Determinant defined only for square matrices");
+
+        if (height_ == 1) return rows_[0][0];
+
+        std::cout << "here5" << std::endl;
+
+        myVector::myVector<T> tmp = m_;
+        std::vector<ProxyRow> tempRows;
+        for (size_t i = 0; i < height_; ++i)
+            tempRows.push_back({ &tmp[i * width_], width_ });
+
+        T det_sign = T(1);
+
+        for (size_t k = 0; k < height_ - 1; ++k)
+        {
+            if (tempRows[k][k] == T(0))
+            {
+                size_t swapRow = k + 1;
+                while (swapRow < height_ && tempRows[swapRow][k] == T(0))
+                    ++swapRow;
+                if (swapRow == height_)
+                    return T(0);
+                std::swap(tempRows[k], tempRows[swapRow]);
+                det_sign = -det_sign;
+            }
+
+            T prevPivot = (k == 0) ? T(1) : tempRows[k-1][k-1];
+            for (size_t i = k + 1; i < height_; ++i)
+            {
+                for (size_t j = k + 1; j < height_; ++j)
+                {
+                    tempRows[i][j] = (tempRows[k][k] * tempRows[i][j] - tempRows[i][k] * tempRows[k][j]) / prevPivot;
+                }
+                tempRows[i][k] = 0;
+            }
+        }
+
+        return det_sign * tempRows[height_ - 1][height_ - 1];
+    }
+
 
     void dump(const std::string& fileWriteTo = "") const
     {
