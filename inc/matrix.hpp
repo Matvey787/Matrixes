@@ -183,7 +183,7 @@ public:
     {
         if (height_ == 0 || width_ == 0)
         {
-            std::cout << "here6" << std::endl;
+            // std::cout << "here6" << std::endl;
             throw std::out_of_range("Matrix is empty");
         }
             
@@ -192,7 +192,7 @@ public:
 
         if (height_ == 1) return rows_[0][0];
 
-        std::cout << "here5" << std::endl;
+        // std::cout << "here5" << std::endl;
 
         myVector::myVector<T> tmp = m_;
         std::vector<ProxyRow> tempRows;

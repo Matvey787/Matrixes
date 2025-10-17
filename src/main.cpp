@@ -1,5 +1,7 @@
 #include "matrix.hpp"
 #include <iostream>
+#include <boost/multiprecision/cpp_int.hpp>
+using bigInt = boost::multiprecision::cpp_int;
 
 int main()
 {
@@ -7,19 +9,15 @@ int main()
     {
         size_t width = 0;
         std::cin >> width;
-        std::cout << "here1" << std::endl;
-        Matrix::Matrix<long double> M(width, width);
-        std::cout << "here2" << std::endl;
+        Matrix::Matrix<bigInt> M(width, width);
 
         for (size_t i = 0; i < width * width; ++i)
         {
             std::cin >> M[i / width][i % width];
         }
-        std::cout << "here3 " << M.height() << " " << M.width() << std::endl;
         // M.dump();
 
-        long double det = M.getBareissDet();
-        std::cout << "here4" << std::endl;
+        bigInt det = M.getBareissDet();
         std::cout << det << "\n";
     }
     catch (const std::exception& e)
