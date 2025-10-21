@@ -50,22 +50,25 @@ function(create_tests_for_target TARGET_NAME FOLDER_WITH_TESTS)
         set(DEFAULT_ANS_FILE "${FOLDER_WITH_TESTS}/ans${TEST_NUMBER}.dat")
         set(GEN_ANS_FILE "${FOLDER_WITH_TESTS}/genAns${TEST_NUMBER}.dat")
 
-        if(EXISTS "${GEN_ANS_FILE}")
+        string(FIND ${TEST_NAME} "genTest" POSITION)
+        if(NOT POSITION EQUAL -1)
             set(ANS_FILE "${GEN_ANS_FILE}")
+            set(TEST_NAME ${TARGET_NAME}_genTest_${TEST_NUMBER})
         else()
             set(ANS_FILE "${DEFAULT_ANS_FILE}")
+            set(TEST_NAME ${TARGET_NAME}_test_${TEST_NUMBER})
         endif()
 
         if(EXISTS ${ANS_FILE})
             file(READ ${ANS_FILE} EXPECTED_OUTPUT)
             string(STRIP "${EXPECTED_OUTPUT}" EXPECTED_OUTPUT)
-            
-            add_test(NAME ${TARGET_NAME}_test_${TEST_NUMBER}
+
+            add_test(NAME ${TEST_NAME}
                 COMMAND bash -c "build/${TARGET_NAME} < ${TEST_FILE}"
                 WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
             )
             
-            set_tests_properties(${TARGET_NAME}_test_${TEST_NUMBER} PROPERTIES
+            set_tests_properties(${TEST_NAME} PROPERTIES
                 PASS_REGULAR_EXPRESSION "^${EXPECTED_OUTPUT}([ \t\n\r]|$)"
             )
         else()

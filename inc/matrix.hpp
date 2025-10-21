@@ -137,6 +137,12 @@ public:
 
                 if (swapRow == height_)
                 {
+                    return T(0);
+                }
+                else
+                {
+                    std::swap(tempRows[i], tempRows[swapRow]);
+                    det = -det;
                     
                     size_t maxColIdx = tempRows[i].findABSMax();
                     if (tempRows[i][maxColIdx] != T(0) && maxColIdx != i)
@@ -147,15 +153,6 @@ public:
 
                         det = -det; 
                     }
-                    else
-                    {
-                        return T(0);
-                    }
-                }
-                else
-                {
-                    std::swap(tempRows[i], tempRows[swapRow]);
-                    det = -det; 
                 }
             }
 
