@@ -5,21 +5,14 @@
 #include <random>
 #include <vector>
 #include <stdexcept>
+#include <tuple>
 
 const double MIN_DOUBLE_ABOVE_ONE = 1.000000001;
 const double MAX_DOUBLE = 1000;
 const double MIN_DOUBLE = -1000;
 
-template<typename T>
-struct ArgsData
-{
-    T determinant;
-    size_t metric;
-    std::string fileWriteTo;
-};
-
 template <typename T>
-ArgsData<T> collectArgsData(int argc, char* argv[])
+std::tuple<T, size_t, std::string> collectArgsData(int argc, char* argv[])
 {
     if (argc < 3)
     {
@@ -112,11 +105,12 @@ void shakeMatrix(Matrix::Matrix<T>& matrix, std::mt19937& rng)
 template<typename T>
 void run(int argc, char* argv[], std::mt19937& rng)
 {
-    auto data = collectArgsData<T>(argc, argv);
-    Matrix::Matrix<T> matrix(data.metric, data.metric);
-    createMatrixWithDeterminant(matrix, data.determinant, rng);
+    auto [determinant, metric, fileWriteTo] = collectArgsData<T>(argc, argv);
+
+    Matrix::Matrix<T> matrix(metric, metric);
+    createMatrixWithDeterminant(matrix, determinant, rng);
     shakeMatrix(matrix, rng);
-    matrix.dump(data.fileWriteTo);
+    matrix.dump(fileWriteTo);
 }
 
 int main(int argc, char* argv[])

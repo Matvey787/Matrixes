@@ -21,8 +21,7 @@ public:
 
     myVector(size_t size_) : cap_(size_), size_(size_)
     {
-        if (size_ > 0)
-            data_ = new T[cap_];
+        data_ = new T[cap_];
     }
 
     myVector(size_t size_, const T arr[])
@@ -50,39 +49,25 @@ public:
         }
         else
         {
-            data_ = new T[cap_];
-            for (size_t i = 0; i < size_; ++i) data_[i] = v.data_[i];
+            T* newData = new T[cap_];
+            for (size_t i = 0; i < size_; ++i) newData[i] = v.data_[i];
+            data_ = newData;
         }
     }
 
-    myVector(myVector<T>&& v) : data_(v.data_), cap_(v.cap_), size_(v.size_)
-    {
-        v.data_ = nullptr;
-        v.cap_ = 0;
-        v.size_ = 0;
-    }
+    myVector(myVector<T>&& v) : data_(std::exchange(v.data_, nullptr)), 
+                                cap_(std::exchange(v.cap_, 0)), 
+                                size_(std::exchange(v.size_, 0)) {}
 
     myVector<T>& operator=(const myVector<T>& v)
     {
-        if (this == &v) return *this;
-
-        delete[] data_;
-
-        cap_ = v.cap_;
-        size_ = v.size_;
-
-        if (size_ == 0)
-        {
-            data_ = nullptr;
-        }   
-        else
-        {
-            data_ = new T[cap_];
-            for (size_t i = 0; i < size_; ++i) data_[i] = v.data_[i];
-        }
-
+        myVector<T> temp(v);
+        std::swap(data_, temp.data_);
+        std::swap(size_, temp.size_);
+        std::swap(cap_, temp.cap_);
         return *this;
     }
+
 
     myVector<T>& operator=(myVector<T>&& v)
     {
@@ -101,6 +86,7 @@ public:
         return *this;
     }
 
+
     ~myVector()
     {
         if (data_) delete[] data_;
@@ -110,15 +96,22 @@ public:
     {
         if (size_ == cap_) 
         {
-            cap_ = (cap_ == 0) ? 1 : cap_ * 2;
-            T* newData = new T[cap_];
+            size_t newCap = (cap_ == 0) ? 1 : cap_ * 2;
+            T* newData = new T[newCap];
 
-            for (size_t i = 0; i < size_; ++i) newData[i] = std::move(data_[i]);
+            for (size_t i = 0; i < size_; ++i) newData[i] = data_[i];
 
-            if (data_) delete[] data_;
+            newData[size_] = val;
+
+            delete[] data_;
             data_ = newData;
+            cap_ = newCap;
+            ++size_;
         }
-        data_[size_++] = val;
+        else
+        {
+            data_[size_++] = val;
+        }
     }
 
     void pop_back()

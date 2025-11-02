@@ -9,8 +9,20 @@
 #include <algorithm>
 #include <iomanip>
 #include <fstream>
+#include <ranges>
 
 namespace Matrix {
+
+namespace detail {
+
+template<typename, typename = void>
+struct has_std_abs : std::false_type {};
+
+template<typename T>
+struct has_std_abs<T, std::void_t<decltype(std::abs(std::declval<T>()))>> 
+    : std::true_type {};
+
+}; // detail
 
 template <typename T>
 class Matrix {
@@ -25,8 +37,9 @@ public:
 
         ProxyRow& operator+=(const ProxyRow& other) {
             checkSize(other);
-            for (size_t i = 0; i < size_; ++i)
-                data_[i] += other.data_[i];
+
+            std::transform(data_, data_ + size_, other.data_, data_, std::plus<T>());
+        
             return *this;
         }
 
@@ -37,30 +50,22 @@ public:
             return *this;
         }
 
-        ProxyRow& operator*=(T factor) {
+        ProxyRow& operator*=(const T& factor) {
             for (size_t i = 0; i < size_; ++i)
                 data_[i] *= factor;
             return *this;
         }
 
-        ProxyRow& operator/=(T factor) {
+        ProxyRow& operator/=(const T& factor) {
             for (size_t i = 0; i < size_; ++i)
                 data_[i] /= factor;
             return *this;
         }
 
         size_t findABSMax() const {
-            if (size_ == 0) return 0;
-            size_t idx = 0;
-            auto maxVal = std::abs(data_[0]);
-            for (size_t i = 1; i < size_; ++i) {
-                auto absVal = std::abs(data_[i]);
-                if (absVal > maxVal) {
-                    maxVal = absVal;
-                    idx = i;
-                }
-            }
-            return idx;
+            auto abs_data = data_ | std::views::transform([](const T& x) { return std::abs(x); });
+            auto It = std::ranges::max_element(abs_data);
+            return std::distance(abs_data.begin(), It);
         }
 
         void checkSize(const ProxyRow& other) const {
@@ -86,6 +91,9 @@ public:
     Matrix(size_t width, myVector::myVector<T>& data)
         : m_(data), width_(width)
     {
+        if (!detail::has_std_abs<T>::value)
+            throw std::invalid_argument("Type T must support std::abs");
+
         if (data.size() % width != 0)
             throw std::invalid_argument("Vector size does not match matrix dimensions");
 
@@ -97,6 +105,9 @@ public:
     Matrix(size_t width, myVector::myVector<T>&& data)
         : m_(std::move(data)), width_(width)
     {
+        if (!detail::has_std_abs<T>::value)
+            throw std::invalid_argument("Type T must support std::abs");
+
         if (m_.size() % width != 0)
             throw std::invalid_argument("Vector size does not match matrix dimensions");
 
@@ -105,10 +116,10 @@ public:
             rows_.push_back({ &m_[i * width_], width_ });
     }
 
-    Matrix(const Matrix&) = delete;
-    Matrix& operator=(const Matrix&) = delete;
-    Matrix(Matrix&&) = delete;
-    Matrix& operator=(Matrix&&) = delete;
+    Matrix(const Matrix& matrix) = default;
+    Matrix& operator=(const Matrix&) = default;
+    Matrix(Matrix&&) = default;
+    Matrix& operator=(Matrix&&) = default;
 
     ProxyRow operator[](size_t i) { return rows_[i]; }
     const ProxyRow operator[](size_t i) const { return rows_[i]; }
@@ -120,7 +131,8 @@ public:
 
         
         myVector::myVector<T> tmp = m_;
-        std::vector<ProxyRow> tempRows;
+        myVector::myVector<ProxyRow> tempRows;
+
         for (size_t i = 0; i < height_; ++i)
             tempRows.push_back({ &tmp[i * width_], width_ });
 
@@ -225,34 +237,29 @@ public:
         return det_sign * tempRows[height_ - 1][height_ - 1];
     }
 
-
     void dump(const std::string& fileWriteTo = "") const
     {
-        if (!fileWriteTo.empty())
+        std::ofstream ofs(fileWriteTo);
+
+        if (!ofs) throw std::runtime_error("Failed to open dump file");
+
+        dump(ofs);
+    }
+
+    void dump(std::ostream& os = std::cout) const
+    {
+        os << width_ << std::endl;
+
+        for (size_t i = 0; i < height_; ++i)
         {
-            std::ofstream ofs(fileWriteTo);
-            if (!ofs) throw std::runtime_error("Failed to open file");
-
-            ofs << width_ << std::endl;
-            for (size_t i = 0; i < height_; ++i)
+            for (size_t j = 0; j < width_; ++j)
             {
-                for (size_t j = 0; j < width_; ++j)
-                    ofs << std::fixed << std::setprecision(8) << rows_[i][j] << " ";
-
-                ofs << std::endl;
+                os << std::fixed << std::setprecision(8) << rows_[i][j] << " ";
             }
-        }
-        else
-        {
-            for (size_t i = 0; i < height_; ++i)
-            {
-                for (size_t j = 0; j < width_; ++j)
-                    std::cout << std::fixed << std::setprecision(8) << rows_[i][j] << " ";
-
-                std::cout << std::endl;
-            }
+            os << std::endl;
         }
     }
+
 
     size_t height() const { return height_; }
     size_t width()  const { return width_; }
